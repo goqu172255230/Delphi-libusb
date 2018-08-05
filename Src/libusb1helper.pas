@@ -1,12 +1,26 @@
+(*Developed By Greg Bayes
+  This is a helper library to access more information.
+  Changed 22/07/2018
+  Added the errorcode function as the libusb_error_code type
+  ass it could not be accessed directly *)
 unit libusb1helper;
 
 interface
-uses libusb1,System.SysUtils, System.Variants,FMX.Dialogs;
+uses libusb1,System.SysUtils,
+{$IF DECLARED (FiremonkeyVersion)}
+{$DEFINE HAS_FMX}
+FMX.Dialogs,System.Variants;
+{$ELSE}
+{$DEFINE HAS_VCL}
+ System.Variants;
+{$ENDIF}
+
 
 function Getlibusbdeviceclass(dcno:uint8):string;
 function Getlibusbdevicetype(dcno:uint8):string;
 function endpointdirection(epno:uint8):string;
 function Getlibusbcapabilitytype(dcno:uint8):string;
+function Errorcode(name:string):integer;
 
 
 implementation
@@ -128,9 +142,35 @@ result:= ((value shr(9-startbits)-bitlength) and ((1 shl bitlength) -1));
 end;
 
 
+ function Errorcode(name:string):integer;
+ begin
+ //set for calling in app
+ if name =  'LIBUSB_SUCCESS' then  result := 0;
+  if name = 'LIBUSB_ERROR_IO' then result := -1;
+  (** Input/output error *)
+  if name  = 'LIBUSB_ERROR_INVALID_PARAM'then result := -2;
+  (** Invalid parameter *)
+  if name = 'LIBUSB_ERROR_ACCESS' then Result:= -3;
+  (** Access denied (insufficient permissions) *)
+  if name = 'LIBUSB_ERROR_NO_DEVICE' then Result:= -4;
+  (** No such device (it may have been disconnected) *)
+  if name = 'LIBUSB_ERROR_NOT_FOUND' then Result:= -5;
+  (** Entity not found *)
+  if name = 'LIBUSB_ERROR_BUSY' then Result:= -6;
+    (** Resource busy *)
+  if name = 'LIBUSB_ERROR_TIMEOUT' then Result:= -7;
+  (** Operation timed out *)
+  if name = 'LIBUSB_ERROR_OVERFLOW' then Result:= -8;
+  (** Overflow *)
+  if name = 'LIBUSB_ERROR_PIPE' then Result:= -9;
+  (** Pipe error *)
+  if name = 'LIBUSB_ERROR_INTERRUPTED' then Result:= -10;
+  (** System call interrupted (perhaps due to signal) *)
+  if name = 'LIBUSB_ERROR_NO_MEM' then Result:= -11;
+  (** Insufficient memory *)
+  if name = 'LIBUSB_ERROR_NOT_SUPPORTED' then Result:= -12;
+  (** Operation not supported or unimplemented on this platform *)
+  if name = 'LIBUSB_ERROR_OTHER' then Result:= -99 ;
+  end;
 
-
-
-
-
-end.
+ end.
