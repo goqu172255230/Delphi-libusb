@@ -1,19 +1,19 @@
- (*  Example ListDevs translated to Delphi by Greg Bayes
- *   Version 1
- *
-  libusb example program to list devices on the bus
- * Copyright © 2007 Daniel Drake <dsd@gentoo.org> *)
+  (* Example ListDevs translated to Delphi by Greg Bayes
+    Version 1
+    Changed  23/07/2018
+    - idVendor and Id Product to hex values
+    - libusb example program to list devices on the bus
 
-unit main;
+   Licence MIT                               *)
+ unit main;
 
 interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes,
-  System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.TabControl,
-  FMX.Controls.Presentation, FMX.StdCtrls, FMX.ScrollBox, FMX.Memo, libusb1,
-  FMX.Edit;
+  System.Variants, FMX.Types, FMX.Controls, FMX.Forms,
+  FMX.Graphics, FMX.Dialogs,  FMX.Controls.Presentation,
+  FMX.StdCtrls, FMX.Memo, libusb1, FMX.Edit, FMX.ScrollBox;
 
 type
   TfmMain = class(TForm)
@@ -40,12 +40,8 @@ implementation
 
 procedure TfmMain.getdev(dev: plibusb_device);
 var
-  i, j, k, r, s: integer;
+  j,r: integer;
   desc: libusb_device_descriptor;
-  config: plibusb_config_descriptor;
-  inter: plibusb_interface;
-  interdesc: plibusb_interface_descriptor;
-  epdesc: plibusb_endpoint_descriptor;
   path: array [0 .. 8] of byte;
 begin
   r := libusb_get_device_descriptor(dev, @desc);
@@ -61,14 +57,14 @@ begin
       inttostr(desc.bDeviceClass));
     Memo1.lines.add('Bus : ' + inttostr(libusb_get_bus_number(dev)) +
       '  Device : ' + inttostr(libusb_get_device_address(dev)) +
-      '   Vender ID : ' + inttostr(desc.idVendor) + '  Product ID : ' +
-      inttostr(desc.idProduct));
+      '   Vender ID : ' + inttohex(desc.idVendor) + '  Product ID : ' +
+      inttohex(desc.idProduct));
     r := libusb_get_port_numbers(dev, @path, sizeof(path));
     if r > 0 then
     begin
       for j := 1 to r - 1 do
       begin
-        Memo1.lines.add('path:  ' + path[j].tostring);
+        Memo1.lines.add('path:  ' + inttostr(path[j]));
       end;
     end;
     Memo1.lines.add
@@ -90,7 +86,7 @@ begin
   r := libusb_init(context);
   if r <> 0 then
   begin
-    Memo1.lines.add('Cannot initialize the DLL Device Value ' + r.tostring +
+    Memo1.lines.add('Cannot initialize the DLL Device Value ' + inttostr(r) +
       'is less than 0');
     exit;
   end
@@ -102,8 +98,8 @@ begin
   Memo1.lines.add('');
   count := libusb_get_device_list(context, @devs);
   //set the array's size to the count
-//  setlength(arrdev, count);
- // libusb_free_device_list(devs, 1); // we now know how many devices there are
+ setlength(arrdev, count);
+libusb_free_device_list(devs, 1); // we now know how many devices there are
 
   if count < 1 then
   begin
@@ -113,7 +109,7 @@ begin
   else
   begin
 
-   // libusb_get_device_list(context, @arrdev); // set new devicelist with dev
+    libusb_get_device_list(context, @arrdev); // set new devicelist with dev
 
     Memo1.lines.add('USB Devices found : ' + inttostr(count));
     Memo1.lines.add('');
@@ -123,15 +119,14 @@ begin
     for i := 0 to count - 1 do
     begin
       Memo1.lines.add('USB device on system no :  ' + inttostr(i + 1));
-      getdev(devs^);
-     // getdev(arrdev[i]);
+     // getdev(devs^);
+      getdev(arrdev[i]);
     end;
     (*Cannot use the  function free_ device_list with an array of Plibusb_devices
      so have to de_ref each Plibdevice one by one from last to first *)
-
-     libusb_free_device_list(devs,1);
-   // for I  := high(arrdev) to low(arrdev) do
-   // libusb_unref_device(arrdev[i]);
+       //  libusb_free_device_list(devs,1);
+    for I  := high(arrdev) to low(arrdev) do
+    libusb_unref_device(arrdev[i]);
     libusb_exit(context);
   end;
 end;
