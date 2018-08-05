@@ -1,4 +1,13 @@
-unit main;
+ (* Developed by Greg Bayes
+   Please adapt this example for your own requirements.
+   Changes made 28/07/2018
+   removed duplicate lines
+   Changed num to ep_out_addr
+   Changes made 23/07/2018
+   The IdVid and idPid to correct hex values from Edit boxes
+   Licence MIT
+   *)
+ unit main;
 
 interface
 
@@ -51,10 +60,12 @@ implementation
 
 procedure Tfmmain.btnReadClick(Sender: TObject);
 var
-r,rc,i,num,fsize,flength:integer;
-newcontext: plibusb_context;
+r,rc,i,fsize,flength:integer;
+context: plibusb_context;
 devh: plibusb_device_handle;
-vendor_id,product_id,ep_in_Addr:uint16_t;
+dev:pplibusb_device;
+t:ssize_t;
+vendor_id,product_id,ep_out_Addr,ep_in_Addr:uint16_t;
 actual_length:pinteger;
 
 OutputData:DataArr ;
@@ -72,21 +83,18 @@ else
   begin
   vendor_id := strtoint(edit1.Text);
   product_id:= strtoint(edit2.Text);
-  num:= strtoint(edit3.Text);
+  ep_out_Addr:= strtoint(edit3.Text);
+
   setlength(Outputdata,4);
   fsize := 512; //max 512 bytes
   flength:=sizeof(outputdata);
   actual_length:=@flength; //set the length of the byte array to a pointer
 
  // need endpoint addresses which are hard coded in the device
-
-   ep_in_addr := strtoint(edit5.Text);// change this endpoint information as required
-
-   newcontext:= nil;   //declare the pointer to null
-   devh:= nil; //create a NULL device handle
-
-   r:= libusb_init(newcontext); //initialize Libusb
-   libusb_set_debug(newcontext,3); // add the debugger on max
+    ep_in_addr := strtoint(edit5.Text);// change this endpoint information as required
+    context:= nil;   //declare the pointer to null
+    devh:= nil; //create a NULL device handle
+    r:= libusb_init(context); //initialize Libusb
 
    if r <> 0  then
    begin
@@ -99,7 +107,7 @@ else
      memo1.Lines.Add('');
      memo1.Lines.add('Opened Device Handle with Vid  '+edit1.text+' /  Pid '+edit2.text );
     //open the device with the vid pid
-    devh:= libusb_open_device_with_vid_pid(newcontext,vendor_id,product_id);
+    devh:= libusb_open_device_with_vid_pid(context,vendor_id,product_id);
     if not (devh = nil)  then
       begin
     memo1.Lines.add('Device Handle created ');
@@ -120,6 +128,7 @@ else
            libusb_detach_kernel_driver(devh,i);
         end;
        rc := libusb_claim_interface(devh,i);
+
         if rc < 0 then
          begin
         memo1.lines.add('Error claiming interface');
@@ -135,7 +144,7 @@ else
   else
    memo1.Lines.Add('No data read !');
 
-    if rc = 7 then //LIBUSB_ERROR_TIMEOUT
+    if rc = errorcode('LIBUSB_ERROR_TIMEOUT') then //LIBUSB_ERROR_TIMEOUT
     begin
       Memo1.lines.add('Libusb timeout error');
       exit;
@@ -150,7 +159,7 @@ else
 
    libusb_release_interface(devh, 0);
    libusb_close(devh);
-   libusb_exit(newcontext);
+   libusb_exit(context);
    Exit;
   end;
   end;
@@ -159,7 +168,7 @@ procedure Tfmmain.btnWriteClick(Sender: TObject);
 var
 //sendbytes:pbyte;
 flength,fsize,r,rc,rd,i,q,num:integer;
-newcontext: plibusb_context;
+context: plibusb_context;
 devh: plibusb_device_handle;
 vendor_id,product_id,ep_out_Addr:uint16_t;
 Newdata:dataArr;
@@ -182,8 +191,8 @@ else
   NewData[3] := strtoint(edit12.Text);
   fsize:= 512; //max bytes
  // sendbytes:=@NewData;
-  vendor_id := strtoint(edit1.Text);
-  product_id:= strtoint(edit2.Text);
+  vendor_id := strtoint('$'+ edit1.Text);
+  product_id:= strtoint('$'+edit2.Text);
   num:= strtoint(edit3.Text);
   flength:=sizeof(NewData);
   actual_length:=@flength; //set the length of the byte array to a pointer
@@ -191,11 +200,11 @@ else
  // need endpoint addresses which are hard coded in the device
    ep_out_Addr := 0;// endpoint
 
-   newcontext:= nil;   //declare the pointer to null
+   context:= nil;   //declare the pointer to null
    devh:= nil; //create a NULL device handle
 
-   r:= libusb_init(newcontext); //initialize Libusb
-   libusb_set_debug(newcontext,3); // add the debugger on
+   r:= libusb_init(context); //initialize Libusb
+   libusb_set_debug(context,3); // add the debugger on
 
    if r < 0  then
    begin
@@ -208,7 +217,7 @@ else
      memo1.Lines.Add('');
      memo1.Lines.add('Opened Device Handle with Vid  '+edit1.text+' /  Pid '+edit2.text );
     //open the device with the vid pid
-    devh:= libusb_open_device_with_vid_pid(newcontext,vendor_id,product_id);
+    devh:= libusb_open_device_with_vid_pid(context,vendor_id,product_id);
     if not (devh = nil)  then
       begin
     memo1.Lines.add('Device Handle created ');
@@ -234,17 +243,18 @@ else
        end;
       end;
 
-      (*Optional change to: var  NewData [0..255] array of byte  - could be 512 depending on
-     the usb device then use the Tencoding -> Tencoding.ansi.getstring();  *)
-          rc:= libusb_bulk_transfer(devh,ep_out_addr,@NewData,fsize,actual_length,1000);
 
-    if rc <> 0 then
+        if rc <> 0 then
      begin
       memo1.lines.add('Error during control transfer');
     end;
 
     end;
-    { We can now start sending or receiving data to the device}
+
+      (*Optional change to: var  NewData [0..255] array of byte  - could be 512 depending on
+     the usb device then use the Tencoding -> Tencoding.ansi.getstring();  *)
+
+    { We can now start sending data to the device}
      if (libusb_bulk_transfer(devh,ep_out_addr,@NewData,fsize,actual_length,1000) < 0) then
       memo1.lines.add( 'Error while sending data ')
      else
@@ -255,7 +265,7 @@ else
   end;
    libusb_release_interface(devh, 0);
    libusb_close(devh);
-   libusb_exit(newcontext);
+   libusb_exit(context);
    Exit;
   end;
 
@@ -265,8 +275,8 @@ begin
   //Please use own addreses and values
   memo1.lines.add('This presents an example using an array of bytes to send and receive.'+#13#10+' This can be adapted to match the USB device input and output methods.' );
 
-  edit1.Text:= '3468';  // enter id vid
-  edit2.Text:= '261';   // enter id pid
+  edit1.Text:= '3468';  // enter id vid  exclude the (Ox) or ($)
+  edit2.Text:= '261';   // enter id pid  exclude the (Ox) or ($)
   edit3.text:= '0';    // enter ep out
   edit5.Text:= '139';  // enter ep in
 
