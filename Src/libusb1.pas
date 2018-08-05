@@ -8,7 +8,10 @@
 {                                                           }
 {***********************************************************}
 {Version 1.0.1                                              }
-{ changed Date 18/05/2018                                   }
+{ changed Date 04/08/2018                                   }
+{  libusb_set_option added  04/08/2108                      }
+{  changed type usb_option to libusb_option                 }
+{  added the TYPE Libusb_log_level                          }
 {  libusb_ss_endpoint_companion_descriptor=> changed the    }
 {  extra: byte; //Changed from pbyte                        }
 {  changed Date 06/04/2018                                  }
@@ -16,7 +19,9 @@
 {  changed  Date 21/02/2018                                 }
 {  Adjusted uint8_t to arrays :                             }
 {  altsetting: array of plibusb_interface_descriptor;       }
-{  &interface: array of plibusb_interface;
+{  &interface: array of plibusb_interface;                  }
+{  changed date 23/07/2018                                  }
+{  error at libusb get_device_address - fixed               }
 {***********************************************************}
 { Translated C ++ Public libusb header file  C++            }
 { Copyright © 2001 Johannes Erdfelt <johannes@erdfelt.com>  }
@@ -445,12 +450,13 @@ LIBUSB_ERROR_COUNT = 14 ;
   (** The library supports detaching of the default USB driver, using
     * \ref libusb_detach_kernel_driver(), if one is set by the OS kernel *)
 
-  LIBUSB_LOG_LEVEL_NONE = 0;  // no messages ever printed by the library (default)
-  LIBUSB_LOG_LEVEL_ERROR  = 1; //  error messages are printed to stderr
-  LIBUSB_LOG_LEVEL_WARNING = 2; // warning and error messages are printed to stderr
-  LIBUSB_LOG_LEVEL_INFO = 3;  // informational messages are printed to stderr
-  LIBUSB_LOG_LEVEL_DEBUG = 4;  // debug and informational messages are printed to stderr
-
+    type libusb_log_level = (
+     LIBUSB_LOG_LEVEL_NONE = 0,  // no messages ever printed by the library (default)
+     LIBUSB_LOG_LEVEL_ERROR  = 1, //  error messages are printed to stderr
+     LIBUSB_LOG_LEVEL_WARNING = 2, // warning and error messages are printed to stderr
+     LIBUSB_LOG_LEVEL_INFO = 3,  // informational messages are printed to stderr
+     LIBUSB_LOG_LEVEL_DEBUG = 4  // debug and informational messages are printed to stderr
+                               );
 (** \ingroup libusb_hotplug
  * Since version 1.0.16, \ref LIBUSB_API_VERSION >= 0x01000102
  * Hotplug events *)
@@ -557,7 +563,7 @@ type
 	LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT    = $02
 );
 
-  Type usb_option =(
+  Type libusb_option =(
   (** Set the log message verbosity.
    * The default level is LIBUSB_LOG_LEVEL_NONE, which means no messages are ever
     * printed. If you choose to increase the message verbosity level, ensure
@@ -1058,7 +1064,8 @@ end;
     //adjusted pplibusb_context for init and exit
 function libusb_init(ctx: plibusb_context):integer;stdcall;
 procedure libusb_exit(ctx: plibusb_context); stdcall;
-// removed LIBUSB_DEPRECATED_FOR(libusb_set_option)
+function libusb_set_option(ctx: plibusb_context;option: libusb_option;level:integer) :ssize_t; stdcall;
+//deprecated
 procedure libusb_set_debug(ctx: plibusb_context; level: integer); stdcall;
 function libusb_get_version():plibusb_version; stdcall;
 function libusb_has_capability(capability: uint32_t):integer; stdcall;
@@ -1090,7 +1097,7 @@ function libusb_get_port_number(dev: Plibusb_device):uint8_t;stdcall;
 function libusb_get_port_numbers(dev: Plibusb_device; port_numbers: PuInt8_t; port_numbers_len: integer):integer;stdcall;//deprecated
 function libusb_get_port_path(ctx: Plibusb_context;  dev: plibusb_device;  path: PuInt8_t;  path_length: uint8_t):integer;stdcall;
 function libusb_get_parent(dev:plibusb_device):Plibusb_device;stdcall;
-function libusb_get_device_address(dev: plibusb_device):uint8_t;stdcall;stdcall;
+function libusb_get_device_address(dev: plibusb_device):uint8_t;stdcall;
 function libusb_get_device_speed(dev: plibusb_device):integer;stdcall;
 function libusb_get_max_packet_size(dev: plibusb_device;endpoint:Byte):integer;stdcall;
 function libusb_get_max_iso_packet_size(dev: plibusb_device; endpoint:Byte):integer;stdcall;
@@ -1196,7 +1203,8 @@ function libusb_hotplug_deregister_callback(ctx: plibusb_context; callback_handl
  //external call to DLL and extended functions and procedures
 function libusb_init(ctx: plibusb_context):integer;stdcall; external LIBUSB_DLL_NAME name 'libusb_init';
 procedure libusb_exit(ctx: plibusb_context); stdcall; external LIBUSB_DLL_NAME name 'libusb_exit';
-// removed LIBUSB_DEPRECATED_FOR(libusb_set_option)
+function libusb_set_option(ctx: plibusb_context;option: libusb_option;level:integer) :ssize_t; stdcall;external LIBUSB_DLL_NAME name 'libusb_set_option';
+// Deprecated for the future
 procedure libusb_set_debug(ctx: plibusb_context; level: integer); stdcall; external LIBUSB_DLL_NAME name 'libusb_set_debug';
 function libusb_get_version():plibusb_version; stdcall; external LIBUSB_DLL_NAME name 'libusb_get_version';
 function libusb_has_capability(capability: uint32_t):integer; stdcall; external LIBUSB_DLL_NAME name 'libusb_has_capability';
