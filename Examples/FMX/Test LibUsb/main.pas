@@ -56,7 +56,7 @@ end;
 procedure Tfmmain.FormShow(Sender: TObject);
 begin
     Edit1.Text := '0';
-   getdevicelist(Memo1,Self);
+    getdevicelist(Memo1,Self);
 
 end;
 

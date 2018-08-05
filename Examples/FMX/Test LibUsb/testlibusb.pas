@@ -1,5 +1,6 @@
 
 (* Translated to Delphi pascal By Greg Bayes  12/02/2018
+  changed 23/07/2018 vid/pid to hex values to match industry values
   ------------------------------------------------------------
   Original C/C++ Test suite program based of libusb-0.1-compat testlibusb
   * Copyright (c) 2013 Nathan Hjelm <hjelmn@mac.ccom> *)
@@ -132,8 +133,8 @@ var
   else
   begin
     // format
-    Memo.lines.add('    VID : ' + inttostr(desc.idVendor) + '     PID : ' +
-      inttostr(desc.idProduct) + '    Bus ' +
+    Memo.lines.add('    VID :  ' + inttoHex(desc.idVendor) + '     PID : ' +
+      inttoHex(desc.idProduct) + '    Bus ' +
       inttostr(libusb_get_bus_number(dev)) + '    Device  ' +
       inttostr(libusb_get_device_address(dev)));
    end;
@@ -493,13 +494,13 @@ begin
         Memo.lines.add('    Description  ->  ' + TEncoding.ANSI.GetString(str))
           else
             Memo.lines.add('    Description  ->  Max Bytes[' + sizeof(description)
-              .ToString + ']+  ' + inttostr(desc.idVendor) +
+              .ToString + ']+  ' + inttohex(desc.idVendor) +
               '    No Descriptive info');
 
           Memo.lines.add('    Id Vendor  ->  Max Bytes[' + sizeof(description)
-            .ToString + ']  ID: ' + inttostr(desc.idVendor));
+            .ToString + ']  ID: ' + inttohex(desc.idVendor));
           Memo.lines.add('    Id PID        ->  Max Bytes[' + sizeof(description)
-            .ToString + ']  ID: ' + inttostr(desc.idProduct));
+            .ToString + ']  ID: ' + inttohex(desc.idProduct));
         end;
 
         if desc.iProduct > 0 then
@@ -512,7 +513,7 @@ begin
           else
             Memo.lines.add('    Description        ->  Max Bytes[' +
               sizeof(description).ToString + ']  ID: ' +
-              inttostr(desc.idProduct) + ' No Descriptive info');
+              inttohex(desc.idProduct) + ' No Descriptive info');
         end;
 
         Memo.lines.add('    Bus No     ->  ' +
