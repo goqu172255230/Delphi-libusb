@@ -22,6 +22,8 @@ VCL and FMX Windows 32bit and 64bit only.
 
 This supports the DLL Version 1.0.17 and up.
 
+Checkout the Wiki https://github.com/Greg-Bayes/Delphi-libusb/wiki
+
 ![](media/5e7e326f1cac06cde584741d41543d22.gif)
 
 **Testing on your IDE**
