@@ -10,17 +10,11 @@ It features the following:-
 
 -   Supports all transfer types such as (control / bulk / interrupt /
     isochronous),
-
 -   Supports two transfer interfaces.
-
     -   Synchronous(simple).
-
     -   Asynchronous(more complicated but more powerful).
-
 -   Thread safe.
-
 -   Lightweight with a lean API.
-
 -   Supports hotplug capability.
 
 This is a Full Delphi header translation of the Libusb.h file available for both
