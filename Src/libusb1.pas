@@ -8,7 +8,25 @@
 {                                                           }
 {***********************************************************}
 {Version 1.0.1                                              }
-{ changed Date 04/08/2018                                   }
+{Changed 24/08/2017                                         }
+{ Libusb Hotplug function and procedure error fixes         }
+{ found when setting up hotplug example                     }
+{Updated the external calls to type callback functions      }
+{ type libusb_pollfd_added_cb = procedure(fd:integer;events:}
+{ Smallint;user_data:pointer);                              }
+{ type libusb_pollfd_removed_cb = procedure(fd:integer;     }
+{ user_data:pointer);                                       }
+{ type libusb_get_pollfds = function(ctx:plibusb_context)   }
+{ :pplibusb_pollfd;                                         }
+{ type libusb_set_pollfd_notifiers = procedure(ctx:         }
+{ plibusb_context;added_cb:libusb_pollfd_added_cb;          }
+{ removed_cb:libusb_pollfd_removed_cb;	user_data:pointer); }
+{ type libusb_hotplug_callback_fn = function (ctx:          }
+{ plibusb_context; device:plibusb_device;event:             }
+{ libusb_hotplug_event;user_data:pointer):integer;          }
+{  changed Date 21/08/2018                                  }
+{ libusb_hotplug_callback_fn1 to libusb_hotplug_callback_fn  }
+{  now correctly refers to an integer                       }
 {  libusb_set_option added  04/08/2108                      }
 {  changed type usb_option to libusb_option                 }
 {  added the TYPE Libusb_log_level                          }
@@ -66,8 +84,18 @@ uses
    uint16_t  = __int16;
    uint32_t  = __int32;
 
+  (* This is a Windows only translation and it is not
+   recommended to use this libary for Android with CMake.
+   This leads to Android devices required to be rooted inorder
+   to read the library.
+   It would be better to use the Android native library*)
+
+  (* LIBUSB_CALL has been removed as it is not required*)
+
   const
- LIBUSB_DLL_NAME =  'libusb-1.0.dll';  //defined for windows stdcall
+  LIBUSB_NAME =  'libusb-1.0.dll';  //defined for windows stdcall
+
+
  ZERO_SIZED_ARRAY = 0; (* [0] - non-standard, but usually working code *)
  (* 'interface' might be defined as a macro on Windows, so we need to
  * undefine it so as not to break the current libusb API, because
@@ -343,7 +371,9 @@ const
   LIBUSB_BT_CONTAINER_ID = 4;
   (** Container ID type *)
 
-(** \ingroup libusb_misc
+
+
+  (** \ingroup libusb_misc
  * Error codes. Most libusb functions return 0 on success or one of these
  * codes on failure.
  * You can call libusb_error_name() to retrieve a string representation of an
@@ -387,8 +417,7 @@ const
    * \param x the little-endian value to convert
    * \returns the value in host-endian byte order *)
 
- var
-  libusb_le16_to_cpu : uint16_t ;
+ 
 
 Const
   (* NB: Remember to update LIBUSB_ERROR_COUNT below as well as the
@@ -528,15 +557,12 @@ type
 libusb_pollfd_removed_cb1 = record
  end;
 
-type
-libusb_hotplug_callback_fn1 = record
-end;
+ type
+ libusbU = record
+ b8:array [0..1] of uint8_t;
+ b16:uint16_t;
+  end;
 
-type
-_tmp = record
-  b8: array [0..1] of uint8_t;
-  b16: uint16_t;
-end;
 
 type
 Plibusb_hotplug_callback_handle =^libusb_hotplug_callback_handle;
@@ -945,7 +971,7 @@ type
 
 type
  pplibusb_device_handle = ^plibusb_device_handle;
-  plibusb_device_handle = ^libusb_device_handle;
+ plibusb_device_handle = ^libusb_device_handle;
  libusb_device_handle = record
  end;
 
@@ -1037,29 +1063,33 @@ fd: integer;
   * nonblocking write readiness. *)
 events: smallint;
 end;
-(** \ingroup libusb_poll
- * Callback function, invoked when a new file descriptor should be added
- * to the set of file descriptors monitored for events.
- * \param fd the new file descriptor
- * \param events events to monitor for, see \ref libusb_pollfd for a
- * description
- * \param user_data User data pointer specified in
- * libusb_set_pollfd_notifiers() call
- * \see libusb_set_pollfd_notifiers()
- *)
-(** \ingroup libusb_poll
+
+//external call to DLL and extended functions and procedures
+
+{Callback functions and procedures - moved up to this level as direct function and procedures use these call functions}
+ type
+libusb_pollfd_added_cb = procedure(fd:integer;events:Smallint;user_data:pointer);
+  (* \ingroup libusb_poll
  * Callback function, invoked when a file descriptor should be removed from
  * the set of file descriptors being monitored for events. After returning
  * from this callback, do not use that file descriptor again.
  * \param fd the file descriptor to stop monitoring
  * \param user_data User data pointer specified in
  * libusb_set_pollfd_notifiers() call
- * \see libusb_set_pollfd_notifiers()
- *)
+ * \see libusb_set_pollfd_notifiers()  *)
+type
+libusb_pollfd_removed_cb = procedure(fd:integer; user_data:pointer);
+type
+libusb_get_pollfds = function(ctx:plibusb_context):pplibusb_pollfd;
+ type
+libusb_set_pollfd_notifiers = procedure(ctx:plibusb_context;added_cb:libusb_pollfd_added_cb1;
+removed_cb: libusb_pollfd_removed_cb1;user_data:pointer);
+type
+libusb_hotplug_callback_fn = function (ctx:plibusb_context;
+device:plibusb_device;event:libusb_hotplug_event;user_data:pointer):integer;
 
-(* HELPER Procedures and Functions*)
 
-//external call to DLL and extended functions and procedures
+{Standard Functions and Procedures}
 
     //adjusted pplibusb_context for init and exit
 function libusb_init(ctx: plibusb_context):integer;stdcall;
@@ -1180,87 +1210,94 @@ function libusb_wait_for_event(ctx:plibusb_context;tv:ptimeval):integer;stdcall;
 function libusb_handle_events_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;
 function libusb_handle_events_timeout_completed(ctx:plibusb_context;tv:ptimeval;completed:pinteger):integer;stdcall;
 function libusb_handle_events(ctx: plibusb_context):integer;stdcall;
-function libusb_handle_events_completed(ctx:plibusb_context; completed:pinteger):integer;stdcall;
+function libusb_handle_events_completed(ctx:plibusb_context; var completed:pinteger):integer;stdcall;
 function libusb_handle_events_locked(ctx:plibusb_context;tv:ptimeval):integer;stdcall;
 function libusb_pollfds_handle_timeouts(ctx:plibusb_context):integer;stdcall;
 function libusb_get_next_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;
-function libusb_pollfd_added_cb(fd:integer;events:Smallint;user_data:pointer):pointer;stdcall;
-function libusb_pollfd_removed_cb(fd:integer; user_data:pointer):pointer;stdcall;
-function libusb_get_pollfds(ctx:plibusb_context):pplibusb_pollfd;stdcall;
+(*libusb_pollfd_added_cb *) //type find in implementation
+(*libusb_pollfd_removed_cb *)//type find in implimentation
+(*libusb_get_pollfds *)//type find in implimentation
 procedure libusb_free_pollfds(pollfds:pplibusb_pollfd );stdcall;
-procedure libusb_set_pollfd_notifiers(ctx:plibusb_context;added_cb:libusb_pollfd_added_cb1;removed_cb: libusb_pollfd_removed_cb1;
-user_data:pointer);stdcall;
-function libusb_hotplugin_callback_fn(ctx:plibusb_context;device:plibusb_device;event:libusb_hotplug_event;user_data:pbyte):integer;stdcall;
-function libusb_hotplug_register_callback(ctx: plibusb_context; events: libusb_hotplug_event;
- flags: libusb_hotplug_flag;vendor_id: integer;product_id: integer;dev_class: integer;cb_fn:libusb_hotplug_callback_fn1;user_data: pbyte;callback_handle:plibusb_hotplug_callback_handle):integer;stdcall;
-function libusb_hotplug_deregister_callback(ctx: plibusb_context; callback_handle: libusb_hotplug_callback_handle):integer;stdcall;
-      (*Helper Function and Procedures *)
- function libusb_cpu_to_le16(x: uint16_t): uint16_t;
-    (*End Helper Function and Procedures *)
+(*libusb_set_pollfd_notifiers *)//type find in implimentation
+(*libusb_hotplug_callback_fn *)// type find in implimentation
 
-  implementation
+
+
+
+
+
+
+function libusb_hotplug_register_callback(ctx: plibusb_context; events: libusb_hotplug_event;
+ flags: libusb_hotplug_flag;vendor_id: integer;product_id: integer;dev_class: integer;cb_fn:libusb_hotplug_callback_fn;user_data: pbyte;callback_handle:plibusb_hotplug_callback_handle):integer;stdcall;
+
+        (*Helper Function and Procedures *)
+   function libusb_cpu_to_le16(x: uint16_t): uint16_t;
+    (*End Helper Function and Procedures *)
+  function libusb_le16_to_cpu(x:uint16_t): uint16_t;
+
+ implementation
 
  //external call to DLL and extended functions and procedures
-function libusb_init(ctx: plibusb_context):integer;stdcall; external LIBUSB_DLL_NAME name 'libusb_init';
-procedure libusb_exit(ctx: plibusb_context); stdcall; external LIBUSB_DLL_NAME name 'libusb_exit';
-function libusb_set_option(ctx: plibusb_context;option: libusb_option;level:integer) :ssize_t; stdcall;external LIBUSB_DLL_NAME name 'libusb_set_option';
+function libusb_init(ctx: plibusb_context):integer;stdcall; external LIBUSB_NAME name 'libusb_init';
+procedure libusb_exit(ctx: plibusb_context); stdcall; external LIBUSB_NAME name 'libusb_exit';
+function libusb_set_option(ctx: plibusb_context;option: libusb_option;level:integer) :ssize_t; stdcall;external LIBUSB_NAME name 'libusb_set_option';
 // Deprecated for the future
-procedure libusb_set_debug(ctx: plibusb_context; level: integer); stdcall; external LIBUSB_DLL_NAME name 'libusb_set_debug';
-function libusb_get_version():plibusb_version; stdcall; external LIBUSB_DLL_NAME name 'libusb_get_version';
-function libusb_has_capability(capability: uint32_t):integer; stdcall; external LIBUSB_DLL_NAME name 'libusb_has_capability';
-procedure libusb_error_name(errcode:integer); stdcall; external LIBUSB_DLL_NAME name 'libusb_error_name';
-function libusb_setlocale(locale: pchar):integer; stdcall; external LIBUSB_DLL_NAME name 'libusb_setlocale';
-function libusb_strerror(const errorcode:libusb_error):pchar; stdcall; external LIBUSB_DLL_NAME name 'libusb_strerror';
-function libusb_get_device_list(ctx:plibusb_context; list: pplibusb_device):ssize_t; stdcall; external LIBUSB_DLL_NAME name 'libusb_get_device_list';
-procedure libusb_free_device_list(list:pplibusb_device; unref_devices:integer); stdcall; external LIBUSB_DLL_NAME name 'libusb_free_device_list';
-function libusb_ref_device(dev:plibusb_device):plibusb_device;stdcall;external LIBUSB_DLL_NAME name 'libusb_ref_device';
-procedure libusb_unref_device(dev: plibusb_device);stdcall;external LIBUSB_DLL_NAME name 'libusb_unref_device';
-function libusb_get_configuration(dev: plibusb_device_handle;  config: pinteger):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_configuration';
-function libusb_get_device_descriptor(dev: plibusb_device;  desc: plibusb_device_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_device_descriptor';
-function libusb_get_active_config_descriptor(dev: plibusb_device; const config:pplibusb_config_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_active_config_descriptor';
-function libusb_get_config_descriptor(dev: plibusb_device;  config_index: uint8_t; const config:pplibusb_config_descriptor ):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_config_descriptor';
-function libusb_get_config_descriptor_by_value(dev: plibusb_device;  bConfigurationValue: uint8_t; config:plibusb_config_descriptor ):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_config_descriptor_by_value';
-procedure libusb_free_config_descriptor(const config: plibusb_config_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_config_descriptor';
-function libusb_get_ss_endpoint_companion_descriptor(const ctx: plibusb_context;  endpoint: plibusb_endpoint_descriptor;ep_comp:pplibusb_ss_endpoint_companion_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_ss_endpoint_companion_descriptor';
-procedure libusb_free_ss_endpoint_companion_descriptor(ep_comp: plibusb_ss_endpoint_companion_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_ss_endpoint_companion_descriptor';
-function libusb_get_bos_descriptor(handle: plibusb_device_handle;bos:pplibusb_bos_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_bos_descriptor';
-procedure libusb_free_bos_descriptor(bos: plibusb_bos_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_bos_descriptor';
-function libusb_get_usb_2_0_extension_descriptor(ctx: plibusb_context;dev_cap: plibusb_bos_dev_capability_descriptor;usb_2_0_extension:pplibusb_usb_2_0_extension_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_usb_2_0_extension_descriptor';
-procedure libusb_free_usb_2_0_extension_descriptor(usb_2_0_extension: plibusb_usb_2_0_extension_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_usb_2_0_extension_descriptor';
-function libusb_get_ss_usb_device_capability_descriptor(ctx: plibusb_context;dev_cap:plibusb_bos_dev_capability_descriptor;ss_usb_device_cap:pplibusb_ss_usb_device_capability_descriptor):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_ss_usb_device_capability_descriptor';
-procedure libusb_free_ss_usb_device_capability_descriptor(ss_usb_device_cap: plibusb_ss_usb_device_capability_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_ss_usb_device_capability_descriptor';
-function libusb_get_container_id_descriptor(ctx: plibusb_context; dev_cap: plibusb_bos_dev_capability_descriptor;container_id: pplibusb_container_id_descriptor ):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_container_id_descriptor';
-procedure libusb_free_container_id_descriptor(container_id: plibusb_container_id_descriptor);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_container_id_descriptor';
-function libusb_get_bus_number(dev: plibusb_device): uint8_t;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_bus_number';
-function libusb_get_port_number(dev: plibusb_device):uint8_t;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_port_number';
-function libusb_get_port_numbers(dev: plibusb_device; port_numbers: puint8_t; port_numbers_len: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_port_numbers'; //deprecated
-function libusb_get_port_path(ctx: plibusb_context;  dev: plibusb_device;  path: puint8_t;  path_length: uint8_t):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_port_path';
-function libusb_get_parent(dev:plibusb_device):plibusb_device;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_parent';
-function libusb_get_device_address(dev: plibusb_device):uint8_t;stdcall;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_device_address';
-function libusb_get_device_speed(dev: plibusb_device):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_device_speed';
-function libusb_get_max_packet_size(dev: plibusb_device;endpoint:Byte):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_max_packet_size';
-function libusb_get_max_iso_packet_size(dev: plibusb_device; endpoint:Byte):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_max_iso_packet_size';
-function libusb_open(dev: plibusb_device;dev_handle:pplibusb_device_handle ):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_open';
-procedure libusb_close(dev_handle: plibusb_device_handle);stdcall;external LIBUSB_DLL_NAME name 'libusb_close';
-function libusb_get_device(dev_handle:libusb_device_handle):libusb_device;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_device';
-function libusb_set_configuration(dev_handle: plibusb_device_handle; configuration:integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_set_configuration';
-function libusb_claim_interface(dev_handle: plibusb_device_handle;interface_number:integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_claim_interface';
-function libusb_release_interface(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_release_interface';
-function libusb_open_device_with_vid_pid(ctx:plibusb_context;vendor_id:uint16_t;product_id:uint16_t):plibusb_device_handle;stdcall;external LIBUSB_DLL_NAME name 'libusb_open_device_with_vid_pid';
-function libusb_set_interface_alt_setting(dev_handle: plibusb_device_handle;  interface_number: integer;  alternate_setting: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_set_interface_alt_setting';
-function libusb_clear_halt(dev_handle: plibusb_device_handle; endpoint:Byte):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_clear_halt';
-function libusb_reset_device(dev_handle: plibusb_device_handle):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_reset_device';
+procedure libusb_set_debug(ctx: plibusb_context; level: integer); stdcall; external LIBUSB_NAME name 'libusb_set_debug';
+function libusb_get_version():plibusb_version; stdcall; external LIBUSB_NAME name 'libusb_get_version';
+function libusb_has_capability(capability: uint32_t):integer; stdcall; external LIBUSB_NAME name 'libusb_has_capability';
+procedure libusb_error_name(errcode:integer); stdcall; external LIBUSB_NAME name 'libusb_error_name';
+function libusb_setlocale(locale: pchar):integer; stdcall; external LIBUSB_NAME name 'libusb_setlocale';
+function libusb_strerror(const errorcode:libusb_error):pchar; stdcall; external LIBUSB_NAME name 'libusb_strerror';
+function libusb_get_device_list(ctx:plibusb_context; list: pplibusb_device):ssize_t; stdcall; external LIBUSB_NAME name 'libusb_get_device_list';
+procedure libusb_free_device_list(list:pplibusb_device; unref_devices:integer); stdcall; external LIBUSB_NAME name 'libusb_free_device_list';
+function libusb_ref_device(dev:plibusb_device):plibusb_device;stdcall;external LIBUSB_NAME name 'libusb_ref_device';
+procedure libusb_unref_device(dev: plibusb_device);stdcall;external LIBUSB_NAME name 'libusb_unref_device';
+function libusb_get_configuration(dev: plibusb_device_handle;  config: pinteger):integer;stdcall;external LIBUSB_NAME name 'libusb_get_configuration';
+function libusb_get_device_descriptor(dev: plibusb_device;  desc: plibusb_device_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_device_descriptor';
+function libusb_get_active_config_descriptor(dev: plibusb_device; const config:pplibusb_config_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_active_config_descriptor';
+function libusb_get_config_descriptor(dev: plibusb_device;  config_index: uint8_t; const config:pplibusb_config_descriptor ):integer;stdcall;external LIBUSB_NAME name 'libusb_get_config_descriptor';
+function libusb_get_config_descriptor_by_value(dev: plibusb_device;  bConfigurationValue: uint8_t; config:plibusb_config_descriptor ):integer;stdcall;external LIBUSB_NAME name 'libusb_get_config_descriptor_by_value';
+procedure libusb_free_config_descriptor(const config: plibusb_config_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_config_descriptor';
+function libusb_get_ss_endpoint_companion_descriptor(const ctx: plibusb_context;  endpoint: plibusb_endpoint_descriptor;ep_comp:pplibusb_ss_endpoint_companion_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_ss_endpoint_companion_descriptor';
+procedure libusb_free_ss_endpoint_companion_descriptor(ep_comp: plibusb_ss_endpoint_companion_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_ss_endpoint_companion_descriptor';
+function libusb_get_bos_descriptor(handle: plibusb_device_handle;bos:pplibusb_bos_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_bos_descriptor';
+procedure libusb_free_bos_descriptor(bos: plibusb_bos_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_bos_descriptor';
+function libusb_get_usb_2_0_extension_descriptor(ctx: plibusb_context;dev_cap: plibusb_bos_dev_capability_descriptor;usb_2_0_extension:pplibusb_usb_2_0_extension_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_usb_2_0_extension_descriptor';
+procedure libusb_free_usb_2_0_extension_descriptor(usb_2_0_extension: plibusb_usb_2_0_extension_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_usb_2_0_extension_descriptor';
+function libusb_get_ss_usb_device_capability_descriptor(ctx: plibusb_context;dev_cap:plibusb_bos_dev_capability_descriptor;ss_usb_device_cap:pplibusb_ss_usb_device_capability_descriptor):integer;stdcall;external LIBUSB_NAME name 'libusb_get_ss_usb_device_capability_descriptor';
+procedure libusb_free_ss_usb_device_capability_descriptor(ss_usb_device_cap: plibusb_ss_usb_device_capability_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_ss_usb_device_capability_descriptor';
+function libusb_get_container_id_descriptor(ctx: plibusb_context; dev_cap: plibusb_bos_dev_capability_descriptor;container_id: pplibusb_container_id_descriptor ):integer;stdcall;external LIBUSB_NAME name 'libusb_get_container_id_descriptor';
+procedure libusb_free_container_id_descriptor(container_id: plibusb_container_id_descriptor);stdcall;external LIBUSB_NAME name 'libusb_free_container_id_descriptor';
+function libusb_get_bus_number(dev: plibusb_device): uint8_t;stdcall;external LIBUSB_NAME name 'libusb_get_bus_number';
+function libusb_get_port_number(dev: plibusb_device):uint8_t;stdcall;external LIBUSB_NAME name 'libusb_get_port_number';
+function libusb_get_port_numbers(dev: plibusb_device; port_numbers: puint8_t; port_numbers_len: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_get_port_numbers'; //deprecated
+function libusb_get_port_path(ctx: plibusb_context;  dev: plibusb_device;  path: puint8_t;  path_length: uint8_t):integer;stdcall;external LIBUSB_NAME name 'libusb_get_port_path';
+function libusb_get_parent(dev:plibusb_device):plibusb_device;stdcall;external LIBUSB_NAME name 'libusb_get_parent';
+function libusb_get_device_address(dev: plibusb_device):uint8_t;stdcall;stdcall;external LIBUSB_NAME name 'libusb_get_device_address';
+function libusb_get_device_speed(dev: plibusb_device):integer;stdcall;external LIBUSB_NAME name 'libusb_get_device_speed';
+function libusb_get_max_packet_size(dev: plibusb_device;endpoint:Byte):integer;stdcall;external LIBUSB_NAME name 'libusb_get_max_packet_size';
+function libusb_get_max_iso_packet_size(dev: plibusb_device; endpoint:Byte):integer;stdcall;external LIBUSB_NAME name 'libusb_get_max_iso_packet_size';
+function libusb_open(dev: plibusb_device;dev_handle:pplibusb_device_handle ):integer;stdcall;external LIBUSB_NAME name 'libusb_open';
+procedure libusb_close(dev_handle: plibusb_device_handle);stdcall;external LIBUSB_NAME name 'libusb_close';
+function libusb_get_device(dev_handle:libusb_device_handle):libusb_device;stdcall;external LIBUSB_NAME name 'libusb_get_device';
+function libusb_set_configuration(dev_handle: plibusb_device_handle; configuration:integer):integer;stdcall;external LIBUSB_NAME name 'libusb_set_configuration';
+function libusb_claim_interface(dev_handle: plibusb_device_handle;interface_number:integer):integer;stdcall;external LIBUSB_NAME name 'libusb_claim_interface';
+function libusb_release_interface(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_release_interface';
+function libusb_open_device_with_vid_pid(ctx:plibusb_context;vendor_id:uint16_t;product_id:uint16_t):plibusb_device_handle;stdcall;external LIBUSB_NAME name 'libusb_open_device_with_vid_pid';
+function libusb_set_interface_alt_setting(dev_handle: plibusb_device_handle;  interface_number: integer;  alternate_setting: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_set_interface_alt_setting';
+function libusb_clear_halt(dev_handle: plibusb_device_handle; endpoint:Byte):integer;stdcall;external LIBUSB_NAME name 'libusb_clear_halt';
+function libusb_reset_device(dev_handle: plibusb_device_handle):integer;stdcall;external LIBUSB_NAME name 'libusb_reset_device';
 //Since version 1.0.19 Returns number of streams allocated
-function libusb_alloc_streams(dev_handle: plibusb_device_handle; num_streams: uint32_t;endpoints: pByte;  num_endpoints: integer):Integer;stdcall; external LIBUSB_DLL_NAME name 'libusb_alloc_streams';
+function libusb_alloc_streams(dev_handle: plibusb_device_handle; num_streams: uint32_t;endpoints: pByte;  num_endpoints: integer):Integer;stdcall; external LIBUSB_NAME name 'libusb_alloc_streams';
 //Since version 1.0.19 Free USB streams allocated with libusb_alloc_atreams() returns Libusb_success = 0
-function libusb_free_streams(dev_handle: plibusb_device_handle;  endpoints: pbyte;  num_endpoints: integer):Integer;stdcall; external LIBUSB_DLL_NAME name 'libusb_free_streams';
-//procedure libusb_free_transfer(transfer: Plibusb_transfer);stdcall;external LIBUSB_DLL_NAME name 'libusb_free_transfer';
-function libusb_dev_mem_alloc(dev_handle:plibusb_device_handle;length:size_t):pbyte;stdcall;external LIBUSB_DLL_NAME name 'libusb_dev_mem_alloc';
-function libusb_dev_mem_free(dev_handle: plibusb_device_handle;  buffer: pbyte;length: size_t):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_dev_mem_free';
-function libusb_kernel_driver_active(dev_handle: plibusb_device_handle; interface_number:integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_kernel_driver_active';
-function libusb_detach_kernel_driver(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_detach_kernel_driver';
-function libusb_attach_kernel_driver(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_attach_kernel_driver';
-function libusb_set_auto_detach_kernel_driver(dev_handle: plibusb_device_handle;  enable: integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_set_auto_detach_kernel_driver';
+function libusb_free_streams(dev_handle: plibusb_device_handle;  endpoints: pbyte;  num_endpoints: integer):Integer;stdcall; external LIBUSB_NAME name 'libusb_free_streams';
+//procedure libusb_free_transfer(transfer: Plibusb_transfer);stdcall;external LIBUSB_NAME name 'libusb_free_transfer';
+function libusb_dev_mem_alloc(dev_handle:plibusb_device_handle;length:size_t):pbyte;stdcall;external LIBUSB_NAME name 'libusb_dev_mem_alloc';
+function libusb_dev_mem_free(dev_handle: plibusb_device_handle;  buffer: pbyte;length: size_t):integer;stdcall;external LIBUSB_NAME name 'libusb_dev_mem_free';
+function libusb_kernel_driver_active(dev_handle: plibusb_device_handle; interface_number:integer):integer;stdcall;external LIBUSB_NAME name 'libusb_kernel_driver_active';
+function libusb_detach_kernel_driver(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_detach_kernel_driver';
+function libusb_attach_kernel_driver(dev_handle: plibusb_device_handle; interface_number: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_attach_kernel_driver';
+function libusb_set_auto_detach_kernel_driver(dev_handle: plibusb_device_handle;  enable: integer):integer;stdcall;external LIBUSB_NAME name 'libusb_set_auto_detach_kernel_driver';
 
 (*Helper functions and procedures *)
 (* async I/O *)
@@ -1333,15 +1370,15 @@ begin
 end;
 
  (*End Helper Functions and Procedure*)
-function libusb_alloc_transfer(iso_packets:integer):Plibusb_transfer; stdcall;external LIBUSB_DLL_NAME name 'libusb_alloc_transfer';
+function libusb_alloc_transfer(iso_packets:integer):Plibusb_transfer; stdcall;external LIBUSB_NAME name 'libusb_alloc_transfer';
 (* 0 on success*)
-function libusb_submit_transfer(transfer: plibusb_transfer):integer;stdcall;external  LIBUSB_DLL_NAME name 'libusb_submit_transfer';
+function libusb_submit_transfer(transfer: plibusb_transfer):integer;stdcall;external  LIBUSB_NAME name 'libusb_submit_transfer';
 (* 0 on success - Asynchronously cancel a previous submitted transfer*)
-function libusb_cancel_transfer(transfer: plibusb_transfer):integer;stdcall;external  LIBUSB_DLL_NAME name 'libusb_cancel_transfer';
+function libusb_cancel_transfer(transfer: plibusb_transfer):integer;stdcall;external  LIBUSB_NAME name 'libusb_cancel_transfer';
 (*Use libusb_fill_bulk_stream_transfer()* **Deprecated** *)
-procedure libusb_free_transfer(transfer:plibusb_transfer);stdcall;external  LIBUSB_DLL_NAME name 'libusb_free_transfer';
-procedure libusb_transfer_set_stream_id(transfer:plibusb_transfer;stream_id : uint32_t);stdcall;external LIBUSB_DLL_NAME name 'libusb_transfer_set_stream_id';
-function libusb_tranfer_get_stream_id(transfer:plibusb_transfer):uint32_t;stdcall;external  LIBUSB_DLL_NAME name 'libusb_tranfer_get_stream_id';
+procedure libusb_free_transfer(transfer:plibusb_transfer);stdcall;external  LIBUSB_NAME name 'libusb_free_transfer';
+procedure libusb_transfer_set_stream_id(transfer:plibusb_transfer;stream_id : uint32_t);stdcall;external LIBUSB_NAME name 'libusb_transfer_set_stream_id';
+function libusb_tranfer_get_stream_id(transfer:plibusb_transfer):uint32_t;stdcall;external  LIBUSB_NAME name 'libusb_tranfer_get_stream_id';
 
 (** Helper function to populate the required \ref libusb_transfer fields
  * for a control transfer.
@@ -1583,11 +1620,11 @@ begin
 
 (* sync I/O *)
 function libusb_control_transfer(dev_handle:plibusb_device_handle;request_type:uint8_t;bRequest:uint8_t;
- wValue:uint16_t;wIndex: uint16_t; data: pbyte;wLength:uint16_t;timeout: uint):integer;stdcall;  external LIBUSB_DLL_NAME name 'libusb_control_transfer';
+ wValue:uint16_t;wIndex: uint16_t; data: pbyte;wLength:uint16_t;timeout: uint):integer;stdcall;  external LIBUSB_NAME name 'libusb_control_transfer';
 function libusb_bulk_transfer(dev_handle:plibusb_device_handle;endpoint:byte;data: pbyte; length: integer;
-actual_length: pinteger;timeout:uint):integer;stdcall;  external LIBUSB_DLL_NAME name 'libusb_bulk_transfer';
+actual_length: pinteger;timeout:uint):integer;stdcall;external LIBUSB_NAME name 'libusb_bulk_transfer';
 function libusb_interrupt_transfer(dev_handle:plibusb_device_handle;endpoint:byte;data:pbyte;length:integer;
-actual_length:pinteger;timeout:uint):integer;stdcall;  external LIBUSB_DLL_NAME name 'libusb_interrupt_transfer';
+actual_length:pinteger;timeout:uint):integer;stdcall;external LIBUSB_NAME name 'libusb_interrupt_transfer';
 
 (** \ingroup libusb_desc
  * Retrieve a descriptor from the default control pipe.
@@ -1643,62 +1680,39 @@ begin
 end;
 
 function libusb_get_string_descriptor_ascii(dev_handle: plibusb_device_handle;
- desc_index:uint8_t; data:pbyte;length:integer):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_string_descriptor_ascii';
+ desc_index:uint8_t; data:pbyte;length:integer):integer;stdcall;external LIBUSB_NAME name 'libusb_get_string_descriptor_ascii';
   (* polling and timeouts *)
- function libusb_try_lock_events(ctx: plibusb_context):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_try_lock_events';
-procedure libusb_lock_events(ctx: plibusb_context);stdcall;external LIBUSB_DLL_NAME name 'libusb_lock_events';
-procedure libusb_unlock_events(ctx: plibusb_context);stdcall;external LIBUSB_DLL_NAME name 'libusb_unlock_events';
-function libusb_event_handling_ok(ctx: plibusb_context):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_event_handling_ok';
-function libusb_event_handler_active(ctx: plibusb_context):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_event_handler_active';
-procedure libusb_interrupt_event_handler(ctx: plibusb_context);stdcall;external LIBUSB_DLL_NAME name 'libusb_interrupt_event_handler';
-procedure libusb_lock_event_waiters(ctx: plibusb_context);stdcall;external LIBUSB_DLL_NAME name 'libusb_lock_event_waiters';
-procedure libusb_unlock_event_waiters(ctx:plibusb_context);stdcall;external LIBUSB_DLL_NAME name 'libusb_unlock_event_waiters';
-function libusb_wait_for_event(ctx:plibusb_context;tv:ptimeval):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_wait_for_event';
-function libusb_handle_events_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_handle_events_timeout';
-function libusb_handle_events_timeout_completed(ctx:plibusb_context;tv:ptimeval;completed:pinteger):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_handle_events_timeout_completed';
-function libusb_handle_events(ctx: plibusb_context):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_handle_events';
-function libusb_handle_events_completed(ctx:plibusb_context; completed:pinteger):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_handle_events_completed';
-function libusb_handle_events_locked(ctx:plibusb_context;tv:ptimeval):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_handle_events_locked';
-function libusb_pollfds_handle_timeouts(ctx:plibusb_context):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_pollfds_handle_timeouts';
-function libusb_get_next_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_next_timeout';
-function libusb_get_pollfds(ctx:plibusb_context):pplibusb_pollfd;stdcall;external LIBUSB_DLL_NAME name 'libusb_get_pollfds';
-procedure libusb_free_pollfds(pollfds:pplibusb_pollfd );stdcall;external LIBUSB_DLL_NAME name 'libusb_free_pollfds';
-procedure libusb_set_pollfd_notifiers(ctx:plibusb_context;added_cb:libusb_pollfd_added_cb1;removed_cb: libusb_pollfd_removed_cb1;
-user_data:pointer);stdcall;external LIBUSB_DLL_NAME name 'libusb_set_pollfd_notifiers';
-function libusb_pollfd_added_cb(fd:integer;events:Smallint;user_data:pointer):pointer;stdcall;external LIBUSB_DLL_NAME name 'libusb_pollfd_added_cb';
-function libusb_pollfd_removed_cb(fd:integer; user_data:pointer):pointer;stdcall;external LIBUSB_DLL_NAME name 'libusb_pollfd_removed_cb';
-function libusb_hotplugin_callback_fn(ctx:plibusb_context;device:plibusb_device;event:libusb_hotplug_event;user_data:pbyte):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_hotplugin_callback_fn';
-function libusb_hotplug_register_callback(ctx: plibusb_context; events: libusb_hotplug_event;
- flags: libusb_hotplug_flag;vendor_id: integer;product_id: integer;dev_class: integer;cb_fn:libusb_hotplug_callback_fn1;user_data: pbyte;callback_handle:plibusb_hotplug_callback_handle):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_hotplug_register_callback';
-function libusb_hotplug_deregister_callback(ctx: plibusb_context; callback_handle: libusb_hotplug_callback_handle):integer;stdcall;external LIBUSB_DLL_NAME name 'libusb_hotplug_deregister_callback';
+ function libusb_try_lock_events(ctx: plibusb_context):integer;stdcall;external LIBUSB_NAME name 'libusb_try_lock_events';
+procedure libusb_lock_events(ctx: plibusb_context);stdcall;external LIBUSB_NAME name 'libusb_lock_events';
+procedure libusb_unlock_events(ctx: plibusb_context);stdcall;external LIBUSB_NAME name 'libusb_unlock_events';
+function libusb_event_handling_ok(ctx: plibusb_context):integer;stdcall;external LIBUSB_NAME name 'libusb_event_handling_ok';
+function libusb_event_handler_active(ctx: plibusb_context):integer;stdcall;external LIBUSB_NAME name 'libusb_event_handler_active';
+procedure libusb_interrupt_event_handler(ctx: plibusb_context);stdcall;external LIBUSB_NAME name 'libusb_interrupt_event_handler';
+procedure libusb_lock_event_waiters(ctx: plibusb_context);stdcall;external LIBUSB_NAME name 'libusb_lock_event_waiters';
+procedure libusb_unlock_event_waiters(ctx:plibusb_context);stdcall;external LIBUSB_NAME name 'libusb_unlock_event_waiters';
+function libusb_wait_for_event(ctx:plibusb_context;tv:ptimeval):integer;stdcall;external LIBUSB_NAME name 'libusb_wait_for_event';
+function libusb_handle_events_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;external LIBUSB_NAME name 'libusb_handle_events_timeout';
+function libusb_handle_events_timeout_completed(ctx:plibusb_context;tv:ptimeval;completed:pinteger):integer;stdcall;external LIBUSB_NAME name 'libusb_handle_events_timeout_completed';
+function libusb_handle_events(ctx: plibusb_context):integer;stdcall;external LIBUSB_NAME name 'libusb_handle_events';
+function libusb_handle_events_completed(ctx:plibusb_context; var completed:pinteger):integer;stdcall;external LIBUSB_NAME name 'libusb_handle_events_completed';
+function libusb_handle_events_locked(ctx:plibusb_context;tv:ptimeval):integer;stdcall;external LIBUSB_NAME name 'libusb_handle_events_locked';
+function libusb_pollfds_handle_timeouts(ctx:plibusb_context):integer;stdcall;external LIBUSB_NAME name 'libusb_pollfds_handle_timeouts';
+function libusb_get_next_timeout(ctx:plibusb_context; tv:ptimeval):integer;stdcall;external LIBUSB_NAME name 'libusb_get_next_timeout';
 
-(* Other helpers*)
-  (*Helper Function and Procedures for Called external *)
+(* \ingroup poll
+ * Callback function, invoked when a new file descriptor should be added
+ * to the set of file descriptors monitored for events.
+ * \param fd the new file descriptor
+ * \param events events to monitor for, see \ref libusb_pollfd for a
+ * description
+ * \param user_data User data pointer specified in
+ * libusb_set_pollfd_notifiers() call
+ * \see libusb_set_pollfd_notifiers() *)
 
- (** \def libusb_le16_to_cpu
- * \ingroup libusb_misc
- * Convert a 16-bit value from little-endian to host-endian format. On
- * little endian systems, this function does nothing. On big endian systems,
- * the bytes are swapped.
- * \param x the little-endian value to convert
- * \returns the value in host-endian byte order *)
 
- function libusb_cpu_to_le16(x: uint16_t): uint16_t;
- var
- z:_tmp;
-    begin
- {IFDEF BIGENDIAN}
- result:= libusb_le16_to_cpu;
- {ELSE}
-   case x of
- 0:z.b8[1] := (x shr 8);
- 1:z.b8[0] := (x and $ff);
-  end;
-     result:= z.b8[1]+z.b8[0];
-    {ENDIF}
-  end;
+procedure libusb_free_pollfds(pollfds:pplibusb_pollfd );stdcall;external LIBUSB_NAME name 'libusb_free_pollfds';
 
-   (*HOTPLUG INFO*)
+ (*HOTPLUG INFO*)
   //register
  (** \ingroup libusb_hotplug
  * Register a hotplug callback function
@@ -1737,4 +1751,36 @@ function libusb_hotplug_deregister_callback(ctx: plibusb_context; callback_handl
   * Since version 1.0.16, \ref LIBUSB_API_VERSION >= 0x01000102
  * \param[in] ctx context this callback is registered with
  * \param[in] callback_handle the handle of the callback to deregister *)
+
+function libusb_hotplug_register_callback(ctx: plibusb_context; events: libusb_hotplug_event;
+ flags: libusb_hotplug_flag;vendor_id: integer;product_id: integer;dev_class: integer;cb_fn:libusb_hotplug_callback_fn;user_data: pbyte;callback_handle:plibusb_hotplug_callback_handle):integer;stdcall;external LIBUSB_NAME name 'libusb_hotplug_register_callback';
+
+(* Other helpers*)
+  (*Helper Function and Procedures for Called external *)
+
+ (** \def libusb_le16_to_cpu
+ * \ingroup libusb_misc
+ * Convert a 16-bit value from little-endian to host-endian format. On
+ * little endian systems, this function does nothing. On big endian systems,
+ * the bytes are swapped.
+ * \param x the little-endian value to convert
+ * \returns the value in host-endian byte order *)
+
+ function libusb_cpu_to_le16(x: uint16_t): uint16_t;
+ var
+ _tmp:libusbU;
+  begin
+ _tmp.b8[1] := (x shr 8);
+ _tmp.b8[0] := (x and $ff);
+ result:= _tmp.b16;
+ end;
+
+ function libusb_le16_to_cpu(x:uint16_t): uint16_t;
+ begin
+ result:= libusb_cpu_to_le16(x);
+  end;
+
+
+
+
  end.
