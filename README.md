@@ -7,9 +7,6 @@ devices and is widely used on Windows, OSX and Linux Platforms’. Libusb 1.0
 supports USB 3.1 and is backwards compatible with USB 2.0 and USB 1.0 and it
 currently supports a Windows only Platform.
 
-Please note that the Hotplug feature is not available for Windows. The C++ Libusb creators are planning 
-to include this feature on the next update.
-
 It features the following:-
 
 -   Supports all transfer types such as (control / bulk / interrupt /
@@ -26,6 +23,9 @@ It features the following:-
 -   Lightweight with a lean API.
 
 -   Supports hotplug capability.
+
+Please note that the Hotplug capability is not available for Windows. The C++ Libusb creators are planning 
+to include this feature on the next update.
 
 This is a Full Delphi header translation of the Libusb.h file available for both
 VCL and FMX Windows 32bit and 64bit only.
