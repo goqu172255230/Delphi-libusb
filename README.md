@@ -120,7 +120,10 @@ Refer to the Wiki
 
 **Updated Changes**
 
--   Change Date 24/08/2017
+-  Change Date 27/09/2018
+    -       Added FXload example for loading EEPROM to EZUSB
+
+-   Change Date 24/08/2018
 
     -   Libusb Hotplug function and procedure error fixes
 
