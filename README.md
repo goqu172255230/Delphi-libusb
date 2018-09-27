@@ -7,6 +7,9 @@ devices and is widely used on Windows, OSX and Linux Platforms’. Libusb 1.0
 supports USB 3.1 and is backwards compatible with USB 2.0 and USB 1.0 and it
 currently supports a Windows only Platform.
 
+Please note that the Hotplug feature is not available for Windows. The C++ Libusb creators are planning 
+to include this feature on the next update.
+
 It features the following:-
 
 -   Supports all transfer types such as (control / bulk / interrupt /
@@ -60,22 +63,16 @@ Current Examples :-
 
 -   Bulk Transfer
 
+-   FXLoad
+
 The following examples are in development and will be added one by one after
 testing
 
 -   Asynchronous Transfer
 
--   EZUSB
-
--   FxLoad
-
--   Hotplug Test
-
--   Synchronous Transfer
+-   Hotplug Test on hold
 
 -   xUSB
-
--   DPFP
 
 -   Bulk Transfer Arduino
 
